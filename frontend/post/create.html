@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CrypTwitter</title>
+
+  <!-- Link to Bootstrap CSS (via CDN) -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <!-- Custom CSS for additional styling -->
+  <style>
+    /* Light blue navbar */
+    .navbar {
+        background-color: #4f9cc7;
+    }
+
+    .navbar-brand {
+        font-weight: bold;
+        color: white;
+    }
+
+    .btn-create-post {
+        background-color: #ff6347;
+        color: white;
+        border-radius: 25px;
+        text-transform: uppercase;
+        font-weight: bold;
+    }
+
+    .btn-connect {
+        background-color: #ff6347;
+        color: white;
+        border-radius: 25px;
+        text-transform: uppercase;
+        font-weight: bold;
+    }
+
+    .btn-create-post:hover {
+        background-color: #e0533a;
+    }
+
+    body {
+        background-color: #f0f8ff;
+        font-family: Arial, sans-serif;
+        color: #333;
+        margin: 0;
+        padding: 0;
+        height: 100vh;
+    }
+
+    .container {
+        background-color: white; /* White */
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        width: 100%;
+        max-width: 500px;
+        text-align: center;
+    }
+
+    h1 {
+        color: #4a90e2; /* Light Blue */
+        margin-bottom: 20px;
+    }
+
+    textarea {
+        width: 100%;
+        height: 120px;
+        padding: 10px;
+        font-size: 16px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        resize: none;
+        margin-bottom: 10px;
+    }
+
+    .counter {
+        font-size: 14px;
+        margin-top: 5px;
+        color: #999; /* Light Gray */
+    }
+
+    .counter.exceeded {
+        color: red;
+    }
+
+    button {
+        background-color: #4a90e2; /* Light Blue */
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        font-size: 16px;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: background-color 0.3s;
+    }
+
+    button:hover {
+        background-color: #357ab7;
+    }
+
+    .message {
+        margin-top: 10px;
+        color: green;
+    }
+
+    .error {
+        color: red;
+    }
+  </style>
+</head>
+<body>
+
+    <nav class="navbar navbar-expand-lg navbar-light">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/index.html">CrypTwitter</a>
+            
+            <a id="connectButton" href="#" class="btn btn-connect ms-auto">CONNECT</a>
+            
+            <a href="/post/create.html" class="btn btn-create-post ms-2">CREATE POST</a>
+        </div>
+    </nav>
+
+    <div class="container my-5">
+        <h1>Text Post Form</h1>
+        <textarea id="textInput" maxlength="240" placeholder="Type your message here..."></textarea>
+        <div id="charCounter" class="counter">0/240</div>
+        <button id="postButton">Post</button>
+        <div id="responseMessage" class="message"></div>
+    </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.min.js"></script>
+
+  <script src="../base.js"></script>
+
+  <script type="module">
+    import { ethers } from "https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.min.js"
+
+    function hasWallet() {
+        return typeof window.ethereum !== 'undefined';
+    }
+
+    function hasConnectedAccount() {
+        return window.ethereum.selectedAddress != null;
+    }
+
+    function createContract() {
+        console.log(`Creating contract with signer: ${signer} and provider: ${provider}`);
+        return new ethers.Contract(contractAddress, contractAbi, signer || provider);
+    }
+
+    function updateConnectButtonText(address) {
+        document.getElementById('connectButton').textContent = address;
+    }
+
+    async function loadEthers() {
+        const PUBLIC_PROVIDER = new ethers.JsonRpcProvider("https://sepolia.gateway.tenderly.co");
+
+        if (!hasWallet() || !hasConnectedAccount()) {
+            provider = PUBLIC_PROVIDER;
+            signer = null;
+            return;if (!hasWallet() || !hasConnectedAccount()) {
+                provider = PUBLIC_PROVIDER;
+                signer = null;
+                return;
+            }
+
+            await connectWallet();
+            updateConnectButtonText(window.ethereum.selectedAddress);
+        }
+
+        await connectWallet();
+        updateConnectButtonText(window.ethereum.selectedAddress);
+    }
+
+    async function connectWallet() {
+        if (!hasWallet()) {
+            alert('Wallet is not installed!');
+            return;
+        }
+
+        await window.ethereum.request({
+            method: "wallet_switchEthereumChain",
+            params: [{ chainId: "0xaa36a7" }],
+        });
+
+        provider = new ethers.BrowserProvider(window.ethereum);
+        signer = await provider.getSigner();
+        updateConnectButtonText(await signer.getAddress());
+    }
+
+    async function onLoad() {
+        loadEthers();
+    }
+
+    const textInput = document.getElementById('textInput');
+    const charCounter = document.getElementById('charCounter');
+    const postButton = document.getElementById('postButton');
+    const responseMessage = document.getElementById('responseMessage');
+
+    textInput.addEventListener('input', () => {
+        const charCount = textInput.value.length;
+        charCounter.textContent = `${charCount}/240`;
+
+        if (charCount > 240) {
+            charCounter.classList.add('exceeded');
+        } else {
+            charCounter.classList.remove('exceeded');
+        }
+    });
+
+    postButton.addEventListener('click', async () => {
+        const text = textInput.value;
+
+        if (text.length > 240) {
+            responseMessage.textContent = "Error: Text exceeds 240 characters.";
+            responseMessage.className = 'error';
+            return;
+        }
+
+        if (!hasWallet()) {
+            alert('MetaMask is not installed!');
+            return;
+        }
+
+        if (!hasConnectedAccount()) {
+            await connectWallet();
+        }
+
+        try {
+            const contract = createContract()
+
+            const tx = await contract.createPost(text);
+            await tx.wait();
+
+            responseMessage.textContent = "Post created successfully!";
+            responseMessage.className = 'message';
+
+            textInput.value = '';
+            charCounter.textContent = '0/240';
+        } catch (error) {
+            console.error('Error:', error);
+            responseMessage.textContent = "Error creating post!";
+            responseMessage.className = 'error';
+        }
+    });
+
+    document.getElementById('connectButton').addEventListener('click', connectWallet);
+    window.onload=onLoad;
+</script>
+</body>
+</html>
